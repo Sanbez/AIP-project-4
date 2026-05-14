@@ -1,5 +1,5 @@
 <template>
-  <!-- Детальный просмотр объявления (глава 9) -->
+  <!-- Детальный просмотр объявления (глава 9) + EditDialog (глава 19) -->
   <v-container class="py-8" max-width="960">
     <v-btn
       variant="text"
@@ -93,6 +93,19 @@
           >
             Купить сейчас
           </v-btn>
+          <!-- Кнопка редактирования (глава 19) -->
+          <v-btn
+            v-if="isOwner"
+            color="primary"
+            variant="tonal"
+            size="large"
+            rounded="lg"
+            block
+            prepend-icon="mdi-pencil-outline"
+            @click="editDialog = true"
+          >
+            Редактировать объявление
+          </v-btn>
         </div>
       </v-col>
     </v-row>
@@ -102,18 +115,29 @@
       <p class="text-h6 text-medium-emphasis mt-4">Объявление не найдено</p>
       <v-btn :to="{ name: 'home' }" class="mt-4" rounded="lg">На главную</v-btn>
     </div>
+
+    <!-- Диалог редактирования (глава 19) -->
+    <EditProductDialog
+      v-if="product && editDialog && isOwner"
+      :product="{ ...product }"
+      @close="editDialog = false"
+      @updated="onUpdated"
+    />
   </v-container>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProductsStore } from '@/stores/products'
 import { useAuthStore } from '@/stores/auth'
+import EditProductDialog from '@/components/EditProductDialog.vue'
 
 const route = useRoute()
 const productsStore = useProductsStore()
 const auth = useAuthStore()
+
+const editDialog = ref(false)
 
 const product = computed(() => productsStore.currentProduct)
 const isOwner = computed(() =>
@@ -131,5 +155,10 @@ function conditionColor(c) {
   if (c?.includes('отличное')) return 'primary'
   if (c?.includes('хорошее')) return 'warning'
   return 'default'
+}
+
+function onUpdated() {
+  editDialog.value = false
+  productsStore.fetchProduct(route.params.id)
 }
 </script>
