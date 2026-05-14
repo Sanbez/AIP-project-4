@@ -17,6 +17,16 @@ const routes = [
     component: () => import('@/views/RegisterView.vue'),
   },
   {
+    path: '/new-product',
+    name: 'new-product',
+    component: () => import('@/views/NewProductView.vue'),
+  },
+  {
+    path: '/my-listings',
+    name: 'my-listings',
+    component: () => import('@/views/MyListingsView.vue'),
+  },
+  {
     path: '/product/:id',
     name: 'product-detail',
     component: () => import('@/views/ProductDetailView.vue'),
