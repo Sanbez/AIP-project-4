@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/api'
+import { useAuthStore } from './auth'
+import { useUiStore } from './ui'
 
 const DEMO_PRODUCTS = [
   {
@@ -21,7 +23,7 @@ const DEMO_PRODUCTS = [
     category: 'Mac',
     condition: 'Б/У — отличное',
     price: 185000,
-    description: 'Использовался 3 месяца для работы. Царапин и вмятин нет.',
+    description: 'Использовался 3 месяца для работы. Царапин и вмятин нет.\nВ наличии оригинальная коробка и зарядное устройство 96W.',
     image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=85',
     seller_id: 'demo-seller',
     seller_name: 'Дмитрий С.',
@@ -33,7 +35,7 @@ const DEMO_PRODUCTS = [
     category: 'iPad',
     condition: 'Б/У — хорошее',
     price: 89000,
-    description: 'Работает идеально. Небольшие царапины на задней крышке.',
+    description: 'Работает идеально. Небольшие царапины на задней крышке.\nИдёт с Apple Pencil 2-го поколения.',
     image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=85',
     seller_id: 'demo-seller',
     seller_name: 'Кристина В.',
@@ -45,7 +47,7 @@ const DEMO_PRODUCTS = [
     category: 'Watch',
     condition: 'Б/У — отличное',
     price: 79000,
-    description: 'Носил 2 месяца. Состояние отличное.',
+    description: 'Носил 2 месяца. Состояние отличное.\nКомплект полный: коробка, Alpine Loop (L), Ocean Band.',
     image_url: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=85',
     seller_id: 'demo-seller',
     seller_name: 'Артём Р.',
@@ -57,14 +59,51 @@ const DEMO_PRODUCTS = [
     category: 'AirPods',
     condition: 'Новый',
     price: 24000,
-    description: 'Запечатанная коробка, новые. Куплены в Apple Store.',
+    description: 'Запечатанная коробка, новые. Куплены в Apple Store.\nЕсть чек.',
     image_url: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MQTP3?wid=800&hei=800&fmt=jpeg&qlt=90&bgc=F5F5F7&.v=1660803972',
     seller_id: 'demo-seller',
     seller_name: 'Наташа О.',
     created_at: null,
   },
+  {
+    id: 'demo-6',
+    title: 'MacBook Air 15" M3 — Starlight 8GB/256GB',
+    category: 'Mac',
+    condition: 'Новый',
+    price: 132000,
+    description: 'Новый, нераспакованный. Куплен как подарок, не пригодился.\nЧек из Apple Store.',
+    image_url: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?auto=format&fit=crop&w=800&q=85',
+    seller_id: 'demo-seller',
+    seller_name: 'Иван К.',
+    created_at: null,
+  },
+  {
+    id: 'demo-7',
+    title: 'Apple Pencil Pro — для iPad Air / iPad Pro M4',
+    category: 'Аксессуары',
+    condition: 'Новый',
+    price: 12000,
+    description: 'Новый в коробке. Поддерживает Squeeze и Find My.',
+    image_url: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MUWA3?wid=800&hei=800&fmt=jpeg&qlt=90&bgc=F5F5F7&.v=1706732846',
+    seller_id: 'demo-seller',
+    seller_name: 'Диана Л.',
+    created_at: null,
+  },
+  {
+    id: 'demo-8',
+    title: 'iPhone 14 — 128GB Midnight',
+    category: 'iPhone',
+    condition: 'Б/У — хорошее',
+    price: 58000,
+    description: 'Использовался год. Корпус идеальный. Защитное стекло в комплекте.',
+    image_url: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-finish-select-202209-6-1inch-midnight?wid=800&hei=800&fmt=p-jpg&bgc=F5F5F7&.v=1660803972',
+    seller_id: 'demo-seller',
+    seller_name: 'Максим Г.',
+    created_at: null,
+  },
 ]
 
+// Приводим строки БД (snake_case) к формату компонентов (camelCase)
 function mapProduct(d) {
   return {
     id: d.id,
@@ -83,6 +122,7 @@ function mapProduct(d) {
 export const useProductsStore = defineStore('products', () => {
   const products = ref([])
   const currentProduct = ref(null)
+  const myProducts = ref([])
   const loading = ref(false)
   const selectedCategory = ref('Все')
 
@@ -105,6 +145,22 @@ export const useProductsStore = defineStore('products', () => {
     }
   }
 
+  async function fetchMyProducts() {
+    const auth = useAuthStore()
+    if (!auth.user) return
+    loading.value = true
+    try {
+      const data = await api.getProducts()
+      myProducts.value = data
+        .filter(p => String(p.seller_id) === String(auth.user.uid))
+        .map(mapProduct)
+    } catch {
+      myProducts.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchProduct(id) {
     if (String(id).startsWith('demo-')) {
       currentProduct.value = mapProduct(DEMO_PRODUCTS.find(p => p.id === id) ?? null)
@@ -121,13 +177,66 @@ export const useProductsStore = defineStore('products', () => {
     }
   }
 
+  async function createProduct({ title, category, condition, price, description, imageFile }) {
+    const ui = useUiStore()
+    ui.setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('title', title)
+      formData.append('category', category)
+      formData.append('condition', condition)
+      formData.append('price', price)
+      formData.append('description', description)
+      if (imageFile) formData.append('image', imageFile)
+
+      await api.createProduct(formData)
+      ui.showSuccess('Объявление опубликовано!')
+      return true
+    } catch {
+      ui.showError('Ошибка при публикации. Попробуйте снова.')
+      return false
+    } finally {
+      ui.setLoading(false)
+    }
+  }
+
+  async function updateProduct(id, data) {
+    const ui = useUiStore()
+    ui.setLoading(true)
+    try {
+      await api.updateProduct(id, data)
+      ui.showSuccess('Объявление обновлено.')
+      return true
+    } catch {
+      ui.showError('Ошибка при обновлении.')
+      return false
+    } finally {
+      ui.setLoading(false)
+    }
+  }
+
+  async function deleteProduct(id) {
+    const ui = useUiStore()
+    ui.setLoading(true)
+    try {
+      await api.deleteProduct(id)
+      myProducts.value = myProducts.value.filter(p => p.id !== id)
+      ui.showSuccess('Объявление удалено.')
+    } catch {
+      ui.showError('Ошибка при удалении.')
+    } finally {
+      ui.setLoading(false)
+    }
+  }
+
   function setCategory(cat) {
     selectedCategory.value = cat
   }
 
   return {
-    products, currentProduct, loading,
+    products, currentProduct, myProducts, loading,
     filteredProducts, categories, selectedCategory,
-    fetchProducts, fetchProduct, setCategory,
+    fetchProducts, fetchMyProducts, fetchProduct,
+    createProduct, updateProduct, deleteProduct, setCategory,
   }
 })

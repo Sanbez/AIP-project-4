@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/api'
 import { useAuthStore } from './auth'
+import { useUiStore } from './ui'
 
 export const useOrdersStore = defineStore('orders', () => {
   const orders = ref([])
@@ -34,6 +35,31 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
+  async function createOrder({ product, buyerName, buyerPhone, buyerAddress }) {
+    const ui = useUiStore()
+    ui.setLoading(true)
+    try {
+      await api.createOrder({
+        productId: product.id,
+        productTitle: product.title,
+        productImage: product.imageUrl,
+        productPrice: product.price,
+        sellerId: product.sellerId,
+        sellerName: product.sellerName,
+        buyerName,
+        buyerPhone,
+        buyerAddress,
+      })
+      ui.showSuccess('Заказ оформлен! Продавец свяжется с вами.')
+      return true
+    } catch {
+      ui.showError('Ошибка при оформлении заказа.')
+      return false
+    } finally {
+      ui.setLoading(false)
+    }
+  }
+
   async function toggleDone(orderId, done) {
     try {
       await api.toggleDone(orderId, done)
@@ -44,5 +70,5 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  return { orders, loading, fetchOrders, toggleDone }
+  return { orders, loading, fetchOrders, createOrder, toggleDone }
 })
