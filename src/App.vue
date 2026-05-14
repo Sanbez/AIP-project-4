@@ -90,7 +90,6 @@
       </template>
     </v-app-bar>
 
-    <!-- Боковое меню — drawer (глава 2) -->
     <v-navigation-drawer v-model="drawer" temporary width="280">
       <v-list-item
         prepend-icon="mdi-apple"
@@ -146,13 +145,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 const drawer = ref(false)
+
+// Инициализация сессии (глава 16 — guard маршрутов + восстановление сессии)
+onMounted(() => auth.init())
 
 const menuItems = computed(() => {
   const base = [{ title: 'Главная', icon: 'mdi-home', to: '/' }]
